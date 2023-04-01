@@ -1,35 +1,37 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+const accessKey = process.env.MY_ACCESS_KEY;
+const secret = process.env.MY_SECRET;
+
 const url = 'https://www.theendhtx.com/';
 
-async function crawl() {
-  try {
-    const response = await axios.get(url);
-    const $ = cheerio.load(response.data);
-    const rsvpButtons = $('a[data-hook="ev-rsvp-button"]');
-    const hrefs = [];
-    rsvpButtons.each((i, elem) => {
-      hrefs.push($(elem).attr('href'));
-    });
-    console.log(hrefs);
+const fetchData = async () => {
+  const result = await axios.get(url);
+  return cheerio.load(result.data);
+};
 
-    for (let i = 0; i < hrefs.length; i++) {
+const crawlWebsite = async () => {
+  const $ = await fetchData();
+  const hrefs = $('a[data-hook="ev-rsvp-button"]')
+    .map((i, element) => $(element).attr('href'))
+    .get();
+  for (const href of hrefs) {
+    try {
       await axios.post('https://web.archive.org/save', {
-        url: hrefs[i]
+        url: href,
       }, {
         headers: {
-          'Accept': 'application/json',
-          'Authorization': 'LOW myaccesskey:mysecret'
-        }
+          Accept: 'application/json',
+          Authorization: `LOW ${accessKey}:${secret}`,
+        },
       });
+      console.log(`Saved ${href} to archive`);
+    } catch (error) {
+      console.error(`Error saving ${href} to archive: ${error.message}`);
     }
-
-    console.log('Crawling completed!');
-  } catch (error) {
-    console.error(error);
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
-}
+};
 
-crawl();
-
+crawlWebsite();
