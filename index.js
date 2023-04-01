@@ -12,42 +12,37 @@ const fetchData = async () => {
   return cheerio.load(result.data);
 };
 
-const crawlWebsite = async () => {
-  const $ = await fetchData();
-  const hrefs = $('a[data-hook="ev-rsvp-button"]')
-    .map((i, element) => $(element).attr("href"))
-    .get();
-  console.log("Oh man I hope I don't fuck this up");
-  for (const href of hrefs) {
-    try {
-      await axios
-        .post(
+const archiveVenueEvents = async () => {
+  try {
+    const $ = await fetchData();
+    const hrefs = $('a[data-hook="ev-rsvp-button"]')
+      .map((i, element) => $(element).attr("href"))
+      .get();
+    for (const href of hrefs) {
+      try {
+        const response = await axios.post(
           "https://web.archive.org/save",
-          {
-            url: href,
-          },
+          { url: href },
           {
             headers: {
               Accept: "application/json",
               Authorization: `LOW ${accessKey}:${secret}`,
+              "Content-Type": "application/x-www-form-urlencoded",
             },
           }
-        )
-        .then((response) => {
-          console.log("Response status: ", response.status);
-          if (response.status === 200) {
-            console.log(JSON.stringify(response));
-          }
-          return response.data;
-        });
-      // console.log(`Saved ${href} to archive.org`);
-    } catch (error) {
-      console.log("You fucked up dummy, lol");
-      console.error(`Error saving ${href} to archive: ${error.message}`);
+        );
+        console.log(
+          `${response.data.url} has been saved to archive.org with the job_id: ${response.data.job_id}`
+        );
+      } catch (error) {
+        console.error(`Error saving ${href} to archive.org: ${error.message}`);
+      }
     }
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+  } catch (error) {
+    console.log("YOU FUCKED UP, DUMMY");
+    console.error(`Error fetching data: ${error.message}`);
   }
   console.log("You didn't fuck up! Yay!");
 };
 
-crawlWebsite();
+archiveVenueEvents();
